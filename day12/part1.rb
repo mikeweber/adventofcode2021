@@ -1,46 +1,45 @@
+require "set"
+
 class CaveTraverser
-  attr_reader :graph
+  attr_reader :graph, :small_cave_limit
 
   def self.init(input)
-    input.split("\n").map { |line| line.split("-") }
+    new(input.split("\n").map { |line| line.split("-") })
   end
 
   def initialize(edges)
     @graph = Graph.new(edges)
   end
 
-  def run
-    traverse(graph.start)
+  def run(small_cave_limit = 1)
+    @small_cave_limit = small_cave_limit
+    limited_visits = Hash.new { |h, k| h[k] = 0 }
+    limited_visits[graph.start] = small_cave_limit - 1
+    limited_visits[graph.finish] = small_cave_limit - 1
+    traverse(graph.start, limited_visits)
   end
 
+  private
 
-  def traverse(node, visited = Set.new, one_time_visits = Set.new)
-    puts "traversing #{node.name}"
+  def traverse(node, limited_visits, visited = Hash.new { |h, k| h[k] = 0 })
     if node == graph.finish
-      puts "at end"
-      visited << node
-      one_time_visits << node if node.small?
+      visited[node] += 1
+      limited_visits[node] += 1
       return ["end"]
     end
-    return [] if one_time_visits.include?(node)
+    return [] if limited_visits[node] >= small_cave_limit
 
-    neighbors = graph.neighbors(node) - visited
-    puts "neighbors of #{node}: #{neighbors.inspect}"
-    visited << node
-    one_time_visits << node if node.small?
+    neighbors = graph.neighbors(node) - visited.select { |_, k| k == small_cave_limit }.keys
+    visited[node] += 1
+    limited_visits[node] += 1 if node.small?
 
     paths = neighbors.each.inject(Set.new) do |paths, neighbor|
       paths << node.name unless node == graph.finish
 
-      neighboring_paths = traverse(neighbor, visited, one_time_visits)
-      puts "paths: #{paths}"
-      puts "neighboring_paths from #{neighbor}: #{neighboring_paths}"
+      neighboring_paths = traverse(neighbor, limited_visits.dup, visited.dup)
       new_paths = paths.reject { |path| path.split(",")[-1] == "end" }.each.with_object([]) do |local_path, new_paths|
         neighboring_paths.each do |neighboring_path|
-          if neighboring_path.split(",")[-1] == "end"
-            puts "Adding path: #{local_path},#{neighboring_path}"
-            new_paths << "#{local_path},#{neighboring_path}"
-          end
+          new_paths << "#{local_path},#{neighboring_path}"
         end
       end
       paths + new_paths
@@ -115,3 +114,8 @@ class Node
     "<Node:#{name}>"
   end
 end
+
+# if ARGV.length == 1
+#   result = CaveTraverser.init(File.open(ARGV[0]).read).run.size
+#   puts "result: #{result}"
+# end

@@ -72,5 +72,17 @@ describe "best_bingo_card" do
       expect(card.marks.size).to eq(4)
       expect { card.mark(20) }.to change { card.bingo? }.from(false).to(true)
     end
+
+    it "reduces the board sum after each mark" do
+      expect(card.sum).to eq(300)
+      card.mark(14)
+      expect(card.sum).to eq(286)
+      card.mark(23)
+      expect(card.sum).to eq(263)
+      card.mark(17)
+      expect(card.sum).to eq(246)
+      card.mark(3)
+      expect(card.sum).to eq(243)
+    end
   end
 end
