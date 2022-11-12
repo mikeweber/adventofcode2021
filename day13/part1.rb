@@ -10,7 +10,7 @@ class Paper
     end
 
     positions = lines.map do |line|
-      x, y = lines[0].split(",").map(&:to_i)
+      x, y = line.split(",").map(&:to_i)
       Position.new(x, y)
     end
     new(positions, folds)
@@ -20,9 +20,12 @@ class Paper
     @folds = folds
     @grid = Grid.new
     positions.each do |pos|
-      puts pos.inspect
-      grid[pos] = "#"
+      grid[pos] = true
     end
+  end
+
+  def count
+    grid.count
   end
 
   def fold!
@@ -30,17 +33,19 @@ class Paper
     new_grid = Grid.new
     if axis == "x"
       grid.height.times do |y|
-        (fold..grid.width).each do |x|
+        (1..fold).each do |x_offset|
+          x = fold + x_offset
           src_pos = Position.new(x, y)
-          dest_pos = Position.new(fold - x, y)
+          dest_pos = Position.new(fold - x_offset, y)
           new_grid[dest_pos] = grid[dest_pos] || grid[src_pos]
         end
       end
     else
       grid.width.times do |x|
-        (fold..(grid.height)).each do |y|
+        (1..fold).each do |y_offset|
+          y = fold + y_offset
           src_pos = Position.new(x, y)
-          dest_pos = Position.new(x, fold - y)
+          dest_pos = Position.new(x, fold - y_offset)
           new_grid[dest_pos] = grid[dest_pos] || grid[src_pos]
         end
       end
@@ -59,17 +64,23 @@ class Paper
 end
 
 class Grid
-  attr_reader :width, :height, :rows
+  attr_reader :width, :height, :rows, :count
 
   def initialize
     @width = 0
     @height = 0
     @rows = Hash.new { |h, k| h[k] = [] }
+    @count = 0
   end
 
   def []=(pos, val)
     @width = pos.x + 1 if pos.x >= width
     @height = pos.y + 1 if pos.y >= height
+    if !rows[pos.y][pos.x] && val
+      @count += 1
+    elsif rows[pos.y][pos.x] && !val
+      @count -= 1
+    end
     rows[pos.y][pos.x] = val
   end
 
@@ -77,7 +88,7 @@ class Grid
     s = ""
     height.times do |y|
       width.times do |x|
-        s << (rows[y][x] || ".")
+        s << (rows[y][x] ? "#" : " ")
       end
       s << "\n"
     end
@@ -150,9 +161,3 @@ class Position
   end
 end
 
-if ARGV.length == 1
-  paper = Paper.init(File.open(ARGV[0]).read)
-  puts paper.inspect
-  puts "fold!"
-  puts paper.fold!.inspect
-end
