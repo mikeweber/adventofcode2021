@@ -27,6 +27,10 @@ class Grid
     matrix[pos.y][pos.x] = value
   end
 
+  def orthogonal_neighbors_to(pos)
+    [pos.north, pos.south, pos.east, pos.west].select { |x| valid_position?(x) }
+  end
+
   def each
     return enum_for(:each) unless block_given?
 

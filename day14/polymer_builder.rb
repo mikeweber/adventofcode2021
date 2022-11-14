@@ -1,5 +1,5 @@
 class PolymerBuilder
-  attr_reader :polymer, :rules
+  attr_reader :pairs, :rules
 
   def self.init(input)
     lines = input.split("\n")
@@ -9,28 +9,30 @@ class PolymerBuilder
   end
 
   def initialize(template, rules)
-    @polymer = Polymer.new(template)
+    @last_el = template[-1]
+    @pairs = template[0..-2].each.with_index.with_object(Hash.new { |h, k| h[k] = 0 }) do |(el, i), pairs|
+      pairs[PolymerPair.new(el, template[i + 1])] += 1
+    end
     @rules = rules.each.with_object({}) do |rule, h|
       pair, new_el = rule.split(" -> ")
-      h[pair] = new_el
+      h[PolymerPair.new(*pair.split(""))] = new_el
     end
   end
 
   def grow!
-    polymer.each do |el|
-      next unless new_el = rules[el.pair_name]
-
-      el << new_el
+    new_pairs = pairs.dup
+    rules.each do |rule, result|
+      new_pairs[PolymerPair.new(rule.part1, result)] += pairs[rule]
+      new_pairs[PolymerPair.new(result, rule.part2)] += pairs[rule]
+      new_pairs[rule] -= pairs[rule]
     end
+    @pairs = new_pairs
   end
 
   def limits
-    counts = polymer.each.with_object(Hash.new { |h, k| h[k] = 0 }) do |el, counts|
-      counts[el.name] += 1
-    end
     min = { letter: "", count: nil }
     max = { letter: "", count: 0 }
-    counts.each do |letter, count|
+    letter_counts.each do |letter, count|
       if min[:count].nil? || count < min[:count]
         min[:letter] = letter
         min[:count] = count
@@ -43,62 +45,45 @@ class PolymerBuilder
     [min, max]
   end
 
-  def to_s
-    polymer.to_s
+  def size
+    letter_counts.values.inject(:+)
+  end
+
+  private
+
+  def letter_counts
+    counts = pairs.each.with_object(Hash.new { |h, k| h[k] = 0 }) do |(pair, count), counts|
+      counts[pair.part1] += count
+    end
+    counts[@last_el] += 1
+    counts
   end
 end
 
-class Polymer
-  attr_reader :head
+class PolymerPair
+  attr_reader :pair, :part1, :part2
 
-  def initialize(template)
-    @head = Element.new(template.shift)
-    cur = @head
-    while el = template.shift
-      cur << el
-      cur = cur.tail
-    end
-  end
-
-  def to_s
-    each.inject("") do |str, el|
-      str + el.name
-    end
-  end
-
-  def each(&block)
-    return to_enum(:each) unless block_given?
-
-    curr_node = head
-    while curr_node
-      orig_tail = curr_node.tail
-      yield curr_node
-      curr_node = orig_tail
-    end
-  end
-end
-
-class Element
-  attr_reader :name, :tail
-
-  def initialize(name, tail = nil)
-    @name = name
-    @tail = tail
-  end
-
-  def pair_name
-    return name if tail.nil?
-
-    name + tail.name
-  end
-
-  def <<(name)
-    return @tail = nil if name.nil?
-
-    @tail = self.class.new(name, @tail)
+  def initialize(part1, part2)
+    @part1 = part1
+    @part2 = part2
+    @pair = part1 + part2
   end
 
   def inspect
-    "<Element #{name}#{" (no tail)" if tail.nil?}>"
+    to_s
+  end
+
+  def to_s
+    pair
+  end
+
+  def ==(other)
+    pair == other.pair
+  end
+
+  alias eql? ==
+
+  def hash
+    pair.hash
   end
 end
