@@ -19,11 +19,26 @@ class Packet
 
   def parse
     case type
+    when 0
+      SumPacket.new(signal, type, version).parse
+    when 1
+      ProductPacket.new(signal, type, version).parse
+    when 2
+      MinPacket.new(signal, type, version).parse
+    when 3
+      MaxPacket.new(signal, type, version).parse
     when 4
       LiteralPacket.new(signal, type, version).parse
+    when 5
+      GreaterThanPacket.new(signal, type, version).parse
+    when 6
+      LessThanPacket.new(signal, type, version).parse
+      # @sub_packets = parse_sub_packets
+      # self
+    when 7
+      EqualPacket.new(signal, type, version).parse
     else
-      @sub_packets = parse_sub_packets
-      self
+      raise "Unexpected type: #{type}"
     end
   end
 
@@ -32,6 +47,19 @@ class Packet
 
   def as_decimal(value)
     self.class.as_decimal(value)
+  end
+end
+
+class OperatorPacket < Packet
+  def initialize(signal, type, version)
+    @signal = signal
+    @type = type
+    @version = version
+  end
+
+  def parse
+    @sub_packets = parse_sub_packets
+    self
   end
 
   private
@@ -45,28 +73,51 @@ class Packet
       sub_packet_iter = BitIterator.new(signal.take(total_length))
       sub_packets = []
       while !sub_packet_iter.empty?
-        sub_packets << self.class.new(sub_packet_iter).parse
+        sub_packets << Packet.new(sub_packet_iter).parse
       end
       sub_packets
     when 1
       number_sub_packets = as_decimal(signal.take(11))
       number_sub_packets.times.map do
-        self.class.new(signal).parse
+        Packet.new(signal).parse
       end
     else
-      []
+      raise "unexpected length_type_id: #{length_type_id}"
     end
   end
 end
 
-class LiteralPacket < Packet
-  attr_reader :value
-
-  def initialize(signal, type, version)
-    @signal = signal
-    @type = type
-    @version = version
+# Type 0
+class SumPacket < OperatorPacket
+  def value
+    @value ||= sub_packets.map(&:value).inject(:+)
   end
+end
+
+# Type 1
+class ProductPacket < OperatorPacket
+  def value
+    @value ||= sub_packets.map(&:value).inject(:*)
+  end
+end
+
+# Type 2
+class MinPacket < OperatorPacket
+  def value
+    @value ||= sub_packets.map(&:value).min
+  end
+end
+
+# Type 3
+class MaxPacket < OperatorPacket
+  def value
+    @value ||= sub_packets.map(&:value).max
+  end
+end
+
+# Type 4
+class LiteralPacket < OperatorPacket
+  attr_reader :value
 
   def parse
     continue_bit = 1
@@ -83,6 +134,36 @@ class LiteralPacket < Packet
 
   def sub_packets
     []
+  end
+end
+
+# Type 5
+class GreaterThanPacket < OperatorPacket
+  def value
+    return @value if @value
+
+    a, b = sub_packets.map(&:value)
+    @value = a > b ? 1 : 0
+  end
+end
+
+# Type 6
+class LessThanPacket < OperatorPacket
+  def value
+    return @value if @value
+
+    a, b = sub_packets.map(&:value)
+    @value = a < b ? 1 : 0
+  end
+end
+
+# Type 7
+class EqualPacket < OperatorPacket
+  def value
+    return @value if @value
+
+    a, b = sub_packets.map(&:value)
+    @value = a == b ? 1 : 0
   end
 end
 

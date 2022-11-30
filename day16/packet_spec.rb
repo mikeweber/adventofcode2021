@@ -120,4 +120,38 @@ RSpec.describe "Packet" do
       end
     end
   end
+
+  context "when using operations" do
+    it "returns a sum" do
+      expect(Packet.init("C200B40A82").parse.value).to eq(3)
+    end
+
+    it "returns a product" do
+      expect(Packet.init("04005AC33890").parse.value).to eq(54)
+    end
+
+    it "returns the minimum" do
+      expect(Packet.init("880086C3E88112").parse.value).to eq(7)
+    end
+
+    it "returns the maximum" do
+      expect(Packet.init("CE00C43D881120").parse.value).to eq(9)
+    end
+
+    it "returns 1 when a value is less than" do
+      expect(Packet.init("D8005AC2A8F0").parse.value).to eq(1)
+    end
+
+    it "returns 0 when a value is not greater than" do
+      expect(Packet.init("F600BC2D8F").parse.value).to eq(0)
+    end
+
+    it "returns 0 when two values are not equal" do
+      expect(Packet.init("9C005AC2F8F0").parse.value).to eq(0)
+    end
+
+    it "can compare multiple sub operands" do
+      expect(Packet.init("9C0141080250320F1802104A08").parse.value).to eq(1)
+    end
+  end
 end
