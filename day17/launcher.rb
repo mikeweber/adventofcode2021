@@ -14,26 +14,19 @@ class Launcher
   end
 
   def search
-    search_max_height = 0
-    (13..15).each do |x|
-      (1..156).to_a.reverse.each do |y|
+    count = 0
+    (1..x_range.max).each do |x|
+      (y_range.min..900).to_a.reverse.each do |y|
         fire_at(x, y)
         result = nil
         while result.nil?
           result = step
         end
 
-        # if result
-        #   puts "Firing at #{x}, #{y}"
-        #   puts "Hit target"
-        # end
-        if result && max_height > search_max_height
-          puts "new max height"
-          search_max_height = max_height
-        end
+        count += 1 if result
       end
     end
-    search_max_height
+    count
   end
 
   def fire_at(vel_x, vel_y)
